@@ -1,0 +1,4 @@
+#include <windows.h>
+1 ICON "ShunDa.ico"
+2 WAVE "beep.wav"
+3 ICON "ModeEn.ico"

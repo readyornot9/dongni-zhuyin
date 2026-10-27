@@ -1,0 +1,22 @@
+# 建置產物
+dist/
+windows/build/
+*.obj
+*.pdb
+
+# 網站另外放在 GitHub Pages 的儲存庫
+pages/
+
+# 原始語料、中間檔、訓練過程的模型（太大，且部分授權不允許重新散布）
+data/raw/
+data/work/
+data/nn/
+tools/nn/__pycache__/
+
+# 個人文件
+綠界申請/
+
+# 系統
+.claude/
+Thumbs.db
+desktop.ini

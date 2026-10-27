@@ -1,0 +1,552 @@
+<title>注音打字挑戰</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* 版面：單欄、像一張打字卡。題目大字在上、輸入框貼在題目下面，成績像計分板列在下方 */
+:root {
+  --paper: #eef1f4;
+  --card: #ffffff;
+  --ink: #18222f;
+  --muted: #5f6b7a;
+  --line: #d7dde4;
+  --accent: #0b6e63;
+  --accent-soft: #dcefeb;
+  --accent-ink: #ffffff;
+  --mark: #f3c64b;
+  --bad: #b8402f;
+  --bad-soft: #f8e4df;
+  --display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --body: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+  --num: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12171d; --card: #1b222b; --ink: #e8edf2; --muted: #9aa6b4; --line: #2c3743;
+    --accent: #4fc2ae; --accent-soft: #183a35; --accent-ink: #0b1f1c; --mark: #e0b440;
+    --bad: #f08a78; --bad-soft: #3b2420; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12171d; --card: #1b222b; --ink: #e8edf2; --muted: #9aa6b4; --line: #2c3743;
+  --accent: #4fc2ae; --accent-soft: #183a35; --accent-ink: #0b1f1c; --mark: #e0b440;
+  --bad: #f08a78; --bad-soft: #3b2420; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 780px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }
+
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+.brand { display: grid; gap: 2px; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 900; font-size: clamp(30px, 6vw, 44px); line-height: 1.15; letter-spacing: .02em; text-wrap: balance; }
+.brand h1 .tone { color: var(--accent); font-family: var(--body); font-weight: 700; margin-left: .08em; }
+.brand p { margin: 0; color: var(--muted); font-size: 15px; }
+
+.modes { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+.modes button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-size: 14px; color: var(--muted); white-space: nowrap; }
+.modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+.board { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 16px; padding: 12px 20px; border-bottom: 1px dashed var(--line); color: var(--muted); font-size: 14px; }
+.meta .prog { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.meta .clock { font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 18px; color: var(--ink); font-weight: 600; }
+.target { padding: 26px 20px 18px; font-family: var(--display); font-weight: 700; font-size: clamp(26px, 5.4vw, 38px); line-height: 1.5; letter-spacing: .04em; min-height: 2.6em; overflow-wrap: anywhere; }
+.target .done { color: var(--accent); }
+.target .wrong { color: var(--bad); text-decoration: underline wavy; text-underline-offset: 6px; }
+.next { padding: 0 20px 16px; color: var(--muted); font-size: 14px; min-height: 1.6em; }
+#typeIn { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: var(--paper); color: var(--ink); font-family: var(--body); font-size: clamp(22px, 4.6vw, 30px); padding: 16px 20px; outline: none; }
+#typeIn:focus { background: var(--card); box-shadow: inset 0 3px 0 var(--accent); }
+#typeIn::placeholder { color: var(--muted); font-size: 16px; }
+#typeIn:disabled { opacity: .6; }
+
+.feedback { min-height: 28px; font-size: 15px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.feedback b { font-weight: 700; }
+.feedback .ok { color: var(--accent); }
+.feedback .bad { color: var(--bad); }
+.feedback .got em { font-style: normal; background: var(--bad-soft); color: var(--bad); border-radius: 3px; padding: 0 1px; }
+.feedback .hint { color: var(--muted); font-size: 14px; }
+
+.score { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+.score > div { padding: 14px 16px; display: grid; gap: 2px; border-left: 1px solid var(--line); }
+.score > div:first-child { border-left: 0; }
+.score b { font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 600; line-height: 1.2; }
+.score span { color: var(--muted); font-size: 13px; letter-spacing: .04em; }
+@media (max-width: 560px) {
+  .score { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .score > div:nth-child(3) { border-left: 0; }
+  .score > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+
+.result { background: var(--ink); color: var(--paper); border-radius: 14px; padding: 22px 22px 20px; display: grid; gap: 14px; }
+.result h2 { margin: 0; font-family: var(--display); font-weight: 900; font-size: 26px; text-wrap: balance; }
+.result .rank { display: inline-block; background: var(--mark); color: #18222f; font-weight: 700; border-radius: 6px; padding: 0 10px; margin-left: 8px; font-family: var(--body); font-size: 18px; vertical-align: 3px; }
+.result .line { color: var(--paper); opacity: .85; font-size: 15px; }
+.result .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.result button { border: 1px solid transparent; border-radius: 8px; padding: 6px 14px; font-size: 14px; }
+.result .primary { background: var(--mark); color: #18222f; font-weight: 700; }
+.result .ghost { background: transparent; border-color: currentColor; color: var(--paper); }
+.result .copied { font-size: 13px; opacity: .85; }
+
+.side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 640px) { .side { grid-template-columns: 1fr; } }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.panel h3 { margin: 0; font-size: 15px; letter-spacing: .04em; color: var(--muted); font-weight: 500; }
+.ranks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.ranks li { display: flex; justify-content: space-between; gap: 10px; }
+.ranks li.me { font-weight: 700; color: var(--accent); }
+.ranks .r { font-family: var(--num); font-variant-numeric: tabular-nums; color: var(--muted); }
+.ranks li.me .r { color: var(--accent); }
+.hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.hist li { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; }
+.hist .d { color: var(--muted); font-family: var(--num); font-size: 13px; }
+.hist .v { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.empty { color: var(--muted); font-size: 14px; }
+.lb { grid-column: 1 / -1; }
+.lb .tabs { display: flex; gap: 4px; }
+.lb .tabs button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 2px 12px; font-size: 13px; color: var(--muted); }
+.lb .tabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.lb .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.board-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 15px; counter-reset: n; }
+.board-list li { display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto auto; gap: 12px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.board-list li::before { counter-increment: n; content: counter(n); font-family: var(--num); color: var(--muted); text-align: right; }
+.board-list li:nth-child(-n+3)::before { color: var(--accent); font-weight: 600; }
+.board-list li.me { color: var(--accent); font-weight: 700; }
+.board-list .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-list .sp, .board-list .ac { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.board-list .ac { color: var(--muted); font-size: 13px; }
+.result .up { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.result .up input { font: inherit; font-size: 15px; padding: 5px 10px; border-radius: 8px; border: 1px solid transparent; background: var(--paper); color: var(--ink); width: 11em; max-width: 100%; }
+.result .up .msg { font-size: 13px; opacity: .85; }
+.panel .clear { justify-self: start; border: 0; background: none; color: var(--muted); font-size: 13px; padding: 0; text-decoration: underline; }
+
+.product { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 18px; align-items: center; }
+.product .icon { grid-row: span 2; width: 64px; height: 64px; border-radius: 15px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--body); font-weight: 700; font-size: 38px; }
+.product h2 { margin: 0; font-family: var(--display); font-weight: 900; font-size: 24px; }
+.product p { margin: 0; color: var(--muted); font-size: 15px; }
+.product .acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+.product .btn { display: inline-block; text-decoration: none; border-radius: 9px; padding: 9px 18px; font-weight: 700; font-size: 15px; border: 1px solid var(--accent); color: var(--accent); }
+.product .btn.solid { background: var(--accent); color: var(--accent-ink); }
+.product .small { font-size: 13px; color: var(--muted); }
+.product details { grid-column: 1 / -1; font-size: 14px; color: var(--muted); }
+.product summary { cursor: pointer; color: var(--ink); }
+.product ol { margin: 8px 0 0; padding-left: 1.4em; display: grid; gap: 4px; }
+footer { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+footer p { margin: 0; }
+footer a { color: var(--accent); font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  .flash { animation: flash .5s ease-out; }
+  @keyframes flash { from { background: var(--accent-soft); } to { background: var(--card); } }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>注音打字挑戰<span class="tone">ˇ</span></h1>
+      <p>用你平常的輸入法照著打，測速度、看正確率。每天一組新題目。</p>
+    </div>
+    <div class="modes" role="group" aria-label="模式">
+      <button id="mDaily" aria-pressed="true">每日挑戰</button>
+      <button id="mMinute" aria-pressed="false">一分鐘測速</button>
+      <button id="mFree" aria-pressed="false">自由練習</button>
+    </div>
+  </header>
+
+  <section class="board" id="board">
+    <div class="meta">
+      <span id="modeNote">今天的 10 句，大家都一樣</span>
+      <span class="prog" id="prog"></span>
+      <span class="clock" id="clock">0.0 秒</span>
+    </div>
+    <div class="target" id="target" aria-live="polite"></div>
+    <div class="next" id="next"></div>
+    <input id="typeIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="點這裡，用注音照著打。打完一句會自動跳下一句">
+  </section>
+
+  <div class="feedback" id="feedback"><span class="hint">按下第一個鍵才開始計時。標點不用打。Enter 可以提早送出，Esc 重新開始。</span></div>
+
+  <section class="result" id="result" hidden>
+    <h2 id="resTitle"></h2>
+    <div class="line" id="resLine"></div>
+    <div class="acts">
+      <button class="primary" id="copyBtn">複製成績</button>
+      <button class="ghost" id="againBtn">再來一次</button>
+      <span class="copied" id="copied"></span>
+    </div>
+    <div class="up" id="upBox" hidden>
+      <label for="nick">暱稱</label>
+      <input id="nick" maxlength="12" autocomplete="nickname" placeholder="最多 12 字">
+      <button class="primary" id="upBtn">上傳到排行榜</button>
+      <span class="msg" id="upMsg"></span>
+    </div>
+  </section>
+
+  <section class="score" aria-label="這一輪">
+    <div><b id="sSpeed">—</b><span>每分鐘字數</span></div>
+    <div><b id="sAcc">—</b><span>正確率</span></div>
+    <div><b id="sDone">0</b><span>完成句數</span></div>
+    <div><b id="sBest">—</b><span>你的最佳速度</span></div>
+  </section>
+
+  <div class="side">
+    <section class="panel">
+      <h3>等級</h3>
+      <ul class="ranks" id="ranks"></ul>
+    </section>
+    <section class="panel">
+      <h3>最近的成績</h3>
+      <ul class="hist" id="hist"></ul>
+      <button class="clear" id="clearHist" hidden>清除我的紀錄</button>
+    </section>
+    <section class="panel lb" id="lbPanel" hidden>
+      <div class="head">
+        <h3>排行榜</h3>
+        <div class="tabs" role="group" aria-label="排行榜">
+          <button id="lbDaily" aria-pressed="true">今天的每日挑戰</button>
+          <button id="lbMinute" aria-pressed="false">一分鐘測速（歷來）</button>
+        </div>
+      </div>
+      <ol class="board-list" id="lbList"></ol>
+      <p class="empty" id="lbEmpty">載入中…</p>
+    </section>
+  </div>
+
+  <section class="product" id="product" hidden>
+    <div class="icon" aria-hidden="true">懂</div>
+    <h2>懂你注音</h2>
+    <p>會學習的注音輸入法，打越多越懂你。跟微軟注音一樣的打法，選字更準，打的字只在你的電腦上處理。</p>
+    <div class="acts">
+      <a class="btn" href="try/">先在網頁上試用</a>
+      <a class="btn solid" href="download/DongNiZhuyin.msi" download>下載 Windows 版</a>
+      <span class="small">免費・Windows 10／11・約 53 MB・MSI 安裝檔・<a href="code-signing.html">程式碼簽章政策</a></span>
+    </div>
+    <details>
+      <summary>怎麼安裝？</summary>
+      <ol>
+        <li>下載後點兩下「DongNiZhuyin.msi」。如果出現「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」。</li>
+        <li>詢問「是否允許變更」時按「是」。</li>
+        <li>裝好後<b>登出 Windows 再登入一次</b>（或重新開機），懂你注音會自動加進鍵盤清單。</li>
+        <li>按 Win＋空白鍵切換到「懂你注音」就能打字。</li>
+        <li>要移除：設定 → 應用程式 → 已安裝的應用程式 → DongNi Zhuyin → 解除安裝。你的學習紀錄會保留。</li>
+      </ol>
+    </details>
+  </section>
+
+  <footer>
+    <p id="privacy">速度只算打對的字。你打的內容只留在你的瀏覽器，不會傳到任何地方。</p>
+    <p>題庫 <span id="poolSize"></span> 句日常口語，每天台灣時間零點換新的每日挑戰。</p>
+    <p><a href="https://github.com/readyornot9/dongni-zhuyin">原始碼（開源）</a>・<a href="code-signing.html">程式碼簽章政策</a></p>
+    <p id="supportLink" hidden>覺得好用嗎？<a href="support.html">支持我們</a></p>
+  </footer>
+</div>
+
+<script>
+const SENTENCES = /*SENTENCES*/[];
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const KEY = 'zhuyin-typing-challenge';
+  const DAILY_N = 10, MINUTE_MS = 60000;
+  const RANKS = [
+    { min: 0, name: '初學' }, { min: 20, name: '上手' }, { min: 40, name: '熟練' },
+    { min: 60, name: '高手' }, { min: 80, name: '快手' }, { min: 100, name: '神打' },
+  ];
+
+  let store = { best: {}, hist: [] };
+  try { Object.assign(store, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* 沒有紀錄就從頭開始 */ }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* 存不了也能玩 */ } };
+
+  // 比對時只看字，忽略空白和標點
+  const norm = (s) => [...s.replace(/[\s，。！？、；：「」『』（）,.!?;:'"()…—~～-]/g, '')];
+
+  // 每日題目：用台灣日期當種子，大家抽到一樣的 10 句
+  function taipeiDate() {
+    const d = new Date(Date.now() + 8 * 3600000);
+    return d.toISOString().slice(0, 10);
+  }
+  function seeded(seed) {
+    let h = 2166136261;
+    for (const c of seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+    return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
+  }
+  function pick(n, rnd) {
+    const idx = new Set();
+    while (idx.size < Math.min(n, SENTENCES.length)) idx.add(Math.floor(rnd() * SENTENCES.length));
+    return [...idx].map((i) => SENTENCES[i]);
+  }
+
+  function compare(expect, got) {
+    const a = norm(expect), b = norm(got);
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    const bad = new Set();
+    for (let i = a.length, j = b.length; i > 0 || j > 0;) {
+      if (i > 0 && j > 0 && d[i][j] === d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)) { if (a[i - 1] !== b[j - 1]) bad.add(j - 1); i--; j--; }
+      else if (j > 0 && d[i][j] === d[i][j - 1] + 1) { bad.add(j - 1); j--; }
+      else i--;
+    }
+    const errors = Math.min(d[a.length][b.length], a.length);
+    return { chars: a.length, errors, right: a.length - errors, got: b, bad };
+  }
+
+  // ── 一輪的狀態 ──
+  let mode = 'daily';
+  let queue = [], pos = 0, results = [], start = null, ended = false, endMs = 0, timer = 0, composing = false;
+  const input = $('typeIn');
+
+  function newRound() {
+    clearInterval(timer);
+    results = []; pos = 0; start = null; ended = false; composing = false;
+    if (mode === 'daily') queue = pick(DAILY_N, seeded('daily-' + taipeiDate()));
+    else queue = pick(mode === 'minute' ? 60 : 200, Math.random);
+    $('modeNote').textContent = mode === 'daily' ? `${taipeiDate()} 的 10 句，大家都一樣` : mode === 'minute' ? '60 秒內能打幾個字？' : '不計時壓力，打幾句都可以';
+    input.disabled = false;
+    input.value = '';
+    $('result').hidden = true;
+    $('feedback').replaceChildren(el('span', 'hint', '按下第一個鍵才開始計時。標點不用打。Enter 可以提早送出，Esc 重新開始。'));
+    showSentence();
+    updateClock();
+    updateScore();
+  }
+
+  function showSentence() {
+    const t = queue[pos] || '';
+    $('target').textContent = t;
+    $('next').textContent = queue[pos + 1] ? '下一句：' + queue[pos + 1] : '';
+    $('prog').textContent = mode === 'daily' ? `第 ${Math.min(pos + 1, queue.length)} / ${queue.length} 句` : `第 ${pos + 1} 句`;
+  }
+
+  function elapsed() { return start == null ? 0 : performance.now() - start; }
+  function updateClock() {
+    const ms = mode === 'minute' ? Math.max(0, MINUTE_MS - elapsed()) : elapsed();
+    $('clock').textContent = (ms / 1000).toFixed(1) + ' 秒';
+    if (mode === 'minute' && start != null && ms <= 0 && !ended) finish();
+  }
+  function begin() {
+    if (start != null || ended) return;
+    start = performance.now();
+    timer = setInterval(updateClock, 100);
+  }
+
+  function totals() {
+    let chars = 0, right = 0;
+    for (const r of results) { chars += r.chars; right += r.right; }
+    const ms = ended ? endMs : elapsed();
+    return { chars, right, ms, speed: ms > 1000 ? Math.round(right / ms * 60000) : 0, acc: chars ? right / chars : 0 };
+  }
+
+  function updateScore() {
+    const t = totals();
+    $('sSpeed').textContent = results.length ? String(t.speed) : '—';
+    $('sAcc').textContent = results.length ? (t.acc * 100).toFixed(1) + '%' : '—';
+    $('sDone').textContent = String(results.length);
+    const best = store.best[mode];
+    $('sBest').textContent = best ? String(best) : '—';
+    renderRanks(results.length ? t.speed : (best || 0));
+  }
+
+  function submit() {
+    if (ended) return;
+    const t = queue[pos];
+    if (!t || !input.value.trim()) return;
+    const c = compare(t, input.value);
+    results.push(c);
+    showFeedback(t, c);
+    input.value = '';
+    pos++;
+    const board = $('board');
+    board.classList.remove('flash'); void board.offsetWidth; board.classList.add('flash');
+    if (mode === 'daily' && pos >= queue.length) { finish(); return; }
+    if (pos >= queue.length) { queue = queue.concat(pick(100, Math.random)); }
+    showSentence();
+    updateScore();
+  }
+
+  function showFeedback(t, c) {
+    const box = $('feedback');
+    box.replaceChildren();
+    if (c.errors === 0) { box.appendChild(el('b', 'ok', '全對')); return; }
+    box.appendChild(el('b', 'bad', `錯 ${c.errors} 字`));
+    box.appendChild(el('span', null, t));
+    const g = el('span', 'got');
+    c.got.forEach((ch, i) => g.appendChild(c.bad.has(i) ? el('em', null, ch) : document.createTextNode(ch)));
+    box.appendChild(g);
+  }
+
+  function rankOf(speed) { let r = RANKS[0]; for (const x of RANKS) if (speed >= x.min) r = x; return r; }
+
+  function finish() {
+    if (ended) return;
+    if (start == null || !results.length) { ended = true; input.disabled = true; return; }
+    ended = true;
+    endMs = mode === 'minute' ? MINUTE_MS : elapsed();
+    clearInterval(timer);
+    updateClock();
+    input.disabled = true;
+    const t = totals();
+    const rank = rankOf(t.speed);
+    const prevBest = store.best[mode] || 0;
+    const isBest = t.speed > prevBest;
+    if (isBest) store.best[mode] = t.speed;
+    store.hist.unshift({ d: taipeiDate(), m: mode, s: t.speed, a: Math.round(t.acc * 1000) / 10 });
+    store.hist = store.hist.slice(0, 30);
+    save();
+    const title = $('resTitle');
+    title.replaceChildren(document.createTextNode(`每分鐘 ${t.speed} 字`), el('span', 'rank', rank.name));
+    $('resLine').textContent = `正確率 ${(t.acc * 100).toFixed(1)}%，打完 ${results.length} 句，用了 ${(t.ms / 1000).toFixed(1)} 秒` + (isBest ? '。新的個人最佳！' : prevBest ? `。你的最佳是 ${prevBest} 字。` : '。');
+    $('copied').textContent = '';
+    showUpload(t);
+    $('result').hidden = false;
+    updateScore();
+    renderHist();
+  }
+
+  const MODE_NAME = { daily: '每日挑戰', minute: '一分鐘測速', free: '自由練習' };
+  $('copyBtn').addEventListener('click', async () => {
+    const t = totals();
+    const text = `注音打字挑戰｜${MODE_NAME[mode]}${mode === 'daily' ? ' ' + taipeiDate() : ''}\n每分鐘 ${t.speed} 字・正確率 ${(t.acc * 100).toFixed(1)}%・等級「${rankOf(t.speed).name}」`;
+    try { await navigator.clipboard.writeText(text); $('copied').textContent = '已複製，貼給朋友比比看'; }
+    catch (e) { $('copied').textContent = text; }
+  });
+  $('againBtn').addEventListener('click', () => { newRound(); input.focus(); });
+
+  // ── 輸入 ──
+  input.addEventListener('compositionstart', () => { composing = true; begin(); });
+  input.addEventListener('compositionend', () => { composing = false; setTimeout(autoSubmit, 0); });
+  input.addEventListener('keydown', (e) => {
+    const inIme = e.isComposing || e.keyCode === 229;
+    if (!['Shift', 'Control', 'Alt', 'Meta', 'Enter', 'Escape', 'Tab'].includes(e.key)) begin();
+    if (inIme) return;
+    if (e.key === 'Enter') { e.preventDefault(); submit(); if (mode === 'free' && !input.value) updateScore(); }
+    if (e.key === 'Escape') { e.preventDefault(); newRound(); }
+  });
+  input.addEventListener('input', () => { if (!composing) autoSubmit(); });
+  function autoSubmit() {
+    if (composing || ended) return;
+    const t = queue[pos];
+    if (t && norm(input.value).length >= norm(t).length) submit();
+  }
+
+  // ── 模式 ──
+  const modeBtns = { daily: $('mDaily'), minute: $('mMinute'), free: $('mFree') };
+  for (const [m, b] of Object.entries(modeBtns)) b.addEventListener('click', () => {
+    if (mode === 'free' && results.length && !ended) finish();
+    mode = m;
+    for (const [k, x] of Object.entries(modeBtns)) x.setAttribute('aria-pressed', String(k === m));
+    newRound();
+    input.focus();
+  });
+
+  // ── 側欄 ──
+  function renderRanks(speed) {
+    const ul = $('ranks'); ul.replaceChildren();
+    const cur = rankOf(speed);
+    RANKS.forEach((r, i) => {
+      const next = RANKS[i + 1];
+      const li = el('li', r === cur && speed > 0 ? 'me' : null);
+      li.appendChild(el('span', null, r.name));
+      li.appendChild(el('span', 'r', next ? `${r.min}–${next.min - 1} 字／分` : `${r.min} 字／分以上`));
+      ul.appendChild(li);
+    });
+  }
+  function renderHist() {
+    const ul = $('hist'); ul.replaceChildren();
+    if (!store.hist.length) { ul.appendChild(el('li', 'empty', '打完一輪，成績會記在這裡（只存在這個瀏覽器）。')); $('clearHist').hidden = true; return; }
+    for (const h of store.hist.slice(0, 8)) {
+      const li = el('li');
+      li.appendChild(el('span', 'd', h.d.slice(5)));
+      li.appendChild(el('span', null, MODE_NAME[h.m] || ''));
+      li.appendChild(el('span', 'v', `${h.s} 字・${h.a}%`));
+      ul.appendChild(li);
+    }
+    $('clearHist').hidden = false;
+  }
+  let clearArmed = false;
+  $('clearHist').addEventListener('click', () => {
+    if (!clearArmed) { clearArmed = true; $('clearHist').textContent = '再按一次確定清除'; setTimeout(() => { clearArmed = false; $('clearHist').textContent = '清除我的紀錄'; }, 3000); return; }
+    store = { best: {}, hist: [] }; save(); clearArmed = false; $('clearHist').textContent = '清除我的紀錄'; renderHist(); updateScore();
+  });
+
+  // ── 排行榜（有設定 Firebase 才開；只上傳暱稱、速度、正確率，打的內容不會上傳） ──
+  const FB = window.FIREBASE_CONFIG;
+  const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  let fb = null, lbMode = 'daily', uploaded = false, lastUpload = null;
+  async function initBoard() {
+    if (!FB) return;
+    $('lbPanel').hidden = false;
+    $('privacy').textContent = '速度只算打對的字。你打的內容不會傳出去；按「上傳到排行榜」時，只會送出暱稱、速度和正確率。';
+    try {
+      const app = await import(SDK + 'firebase-app.js');
+      const f = await import(SDK + 'firebase-firestore.js');
+      fb = { f, db: f.getFirestore(app.initializeApp(FB)) };
+      loadBoard();
+    } catch (e) { $('lbEmpty').textContent = '排行榜暫時連不上，成績還是會記在你的瀏覽器。'; }
+  }
+  const colFor = (m) => (m === 'daily' ? fb.f.collection(fb.db, 'daily', taipeiDate(), 'scores') : fb.f.collection(fb.db, 'minute'));
+  async function loadBoard() {
+    if (!fb) return;
+    const list = $('lbList');
+    try {
+      const snap = await fb.f.getDocs(fb.f.query(colFor(lbMode), fb.f.orderBy('speed', 'desc'), fb.f.limit(20)));
+      list.replaceChildren();
+      snap.forEach((d) => {
+        const x = d.data();
+        const li = el('li', lastUpload && lastUpload.id === d.id ? 'me' : null);
+        li.appendChild(el('span', 'nm', String(x.name || '').slice(0, 12)));
+        li.appendChild(el('span', 'sp', `${x.speed} 字／分`));
+        li.appendChild(el('span', 'ac', `${x.acc}%`));
+        list.appendChild(li);
+      });
+      $('lbEmpty').hidden = !snap.empty;
+      $('lbEmpty').textContent = lbMode === 'daily' ? '今天還沒有人上榜，打完每日挑戰來搶第一。' : '還沒有人上榜。';
+    } catch (e) { $('lbEmpty').hidden = false; $('lbEmpty').textContent = '排行榜暫時連不上，請稍後重新整理。'; }
+  }
+  for (const [m, id] of [['daily', 'lbDaily'], ['minute', 'lbMinute']]) $(id).addEventListener('click', () => {
+    lbMode = m;
+    $('lbDaily').setAttribute('aria-pressed', String(m === 'daily'));
+    $('lbMinute').setAttribute('aria-pressed', String(m === 'minute'));
+    loadBoard();
+  });
+  function showUpload(t) {
+    uploaded = false;
+    const can = fb && (mode === 'daily' || mode === 'minute') && t.speed >= 1 && t.speed <= 200;
+    $('upBox').hidden = !can;
+    $('upMsg').textContent = '';
+    $('upBtn').disabled = false;
+    $('nick').value = store.nick || '';
+  }
+  $('upBtn').addEventListener('click', async () => {
+    if (uploaded || !fb) return;
+    const name = $('nick').value.trim().slice(0, 12);
+    if (!name) { $('upMsg').textContent = '先取一個暱稱'; $('nick').focus(); return; }
+    const t = totals();
+    store.nick = name; save();
+    $('upBtn').disabled = true;
+    $('upMsg').textContent = '上傳中…';
+    try {
+      const ref = await fb.f.addDoc(colFor(mode), { name, speed: t.speed, acc: Math.round(t.acc * 1000) / 10, at: fb.f.serverTimestamp() });
+      uploaded = true;
+      lastUpload = { id: ref.id };
+      $('upMsg').textContent = '已上榜';
+      lbMode = mode;
+      $('lbDaily').setAttribute('aria-pressed', String(mode === 'daily'));
+      $('lbMinute').setAttribute('aria-pressed', String(mode === 'minute'));
+      loadBoard();
+    } catch (e) { $('upBtn').disabled = false; $('upMsg').textContent = '上傳失敗，請再試一次'; }
+  });
+
+  initBoard();
+  if (FB) { $('supportLink').hidden = false; $('product').hidden = false; }  // 支持頁、試用和下載只在 GitHub Pages 版才有
+  $('poolSize').textContent = SENTENCES.length.toLocaleString('zh-TW');
+  newRound();
+  renderHist();
+})();
+</script>

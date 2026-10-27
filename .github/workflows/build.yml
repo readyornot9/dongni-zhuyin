@@ -1,0 +1,35 @@
+# 自動建置 Windows 安裝檔：每次推送到 main、或手動觸發，都從原始碼重新編譯輸入法 DLL 並產生 MSI
+# 產出的 DongNiZhuyin.msi 在這次執行的 Artifacts 下載
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 跑選字測試
+        run: npm test
+
+      - name: 編譯輸入法 DLL（x64、x86）
+        shell: cmd
+        run: windows\build.cmd
+
+      - name: 產生 MSI
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-msi.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DongNiZhuyin-msi
+          path: dist/DongNiZhuyin.msi
+          if-no-files-found: error

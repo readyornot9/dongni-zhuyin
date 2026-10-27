@@ -1,0 +1,23 @@
+﻿懂你注音使用了下列資料與軟體，在此感謝並依各授權條款標示：
+
+【詞庫】
+小麥注音輸入法（McBopomofo）詞庫
+授權：MIT License
+https://github.com/openvanilla/McBopomofo
+
+【前後文統計】
+由中文維基百科繁體文章統計詞語相鄰次數產生。
+原始內容授權：CC BY-SA 4.0（https://creativecommons.org/licenses/by-sa/4.0/deed.zh_TW）
+本輸入法隨附的前後文統計資料（web/lm.js）同樣依 CC BY-SA 4.0 釋出。
+
+【口語統計】
+Tatoeba 例句（CC BY 2.0 FR）：https://tatoeba.org/
+Mozilla Common Voice 台灣華語句子（CC0）：https://commonvoice.mozilla.org/
+
+【AI 複審模型】
+自行訓練的神經網路（約 1340 萬參數），訓練資料為上述來源，
+加上 FineWeb-2 繁體中文網頁（ODC-By 1.0）：https://huggingface.co/datasets/HuggingFaceFW/fineweb-2
+
+【執行環境】
+Node.js（MIT License 等，詳見 app\node\LICENSE）
+https://nodejs.org/

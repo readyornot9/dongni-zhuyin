@@ -1,0 +1,11 @@
+{
+  "name": "shunda-zhuyin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "順打注音：會學習的注音輸入法（測試台階段）",
+  "scripts": {
+    "build": "node tools/build-dict.js",
+    "test": "node tests/run.js",
+    "build:publish": "node tools/build-publish.js"
+  }
+}
