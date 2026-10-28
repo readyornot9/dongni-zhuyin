@@ -1,4 +1,7 @@
 #include "Common.h"
+#include <exdisp.h>
+#include <shlobj.h>
+#include <shldisp.h>
 
 namespace {
 const DWORD kTimeoutMs = 2500;  // 送出前 AI 複審最多等 1.5 秒，再留一點餘裕
@@ -41,7 +44,56 @@ void PipeClient::Close() {
   buf_.clear();
 }
 
-// 啟動引擎服務（外殼找不到服務時、開機登入時的 RunServer 都用這個）
+// 請檔案總管代為啟動程式：程式就跟從桌面開的一樣，是檔案總管的子程序，
+// 不會被呼叫的程式（Teams、Chrome、安裝程式）的工作群組關掉，也不會帶到它們的沙盒或權限
+// （做法：從桌面視窗拿到 Shell.Application，呼叫 ShellExecute）
+namespace {
+template <class T> struct Com {
+  T* p = nullptr;
+  ~Com() { if (p) p->Release(); }
+  T** operator&() { return &p; }
+  T* operator->() { return p; }
+};
+bool LaunchViaExplorer(const std::wstring& file, const std::wstring& args) {
+  HRESULT init = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+  bool ok = false;
+  {
+    Com<IShellWindows> windows;
+    Com<IDispatch> desktop;
+    Com<IServiceProvider> sp;
+    Com<IShellBrowser> browser;
+    Com<IShellView> view;
+    Com<IDispatch> background;
+    Com<IShellFolderViewDual> folderView;
+    Com<IDispatch> app;
+    Com<IShellDispatch2> shell;
+    VARIANT loc; VariantInit(&loc); loc.vt = VT_I4; loc.lVal = CSIDL_DESKTOP;
+    VARIANT empty; VariantInit(&empty);
+    long hwnd = 0;
+    if (SUCCEEDED(CoCreateInstance(CLSID_ShellWindows, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&windows))) &&
+        windows->FindWindowSW(&loc, &empty, SWC_DESKTOP, &hwnd, SWFO_NEEDDISPATCH, &desktop) == S_OK && desktop.p &&
+        SUCCEEDED(desktop->QueryInterface(IID_PPV_ARGS(&sp))) &&
+        SUCCEEDED(sp->QueryService(SID_STopLevelBrowser, IID_PPV_ARGS(&browser))) &&
+        SUCCEEDED(browser->QueryActiveShellView(&view)) &&
+        SUCCEEDED(view->GetItemObject(SVGIO_BACKGROUND, IID_PPV_ARGS(&background))) &&
+        SUCCEEDED(background->QueryInterface(IID_PPV_ARGS(&folderView))) &&
+        SUCCEEDED(folderView->get_Application(&app)) &&
+        SUCCEEDED(app->QueryInterface(IID_PPV_ARGS(&shell)))) {
+      BSTR bfile = SysAllocString(file.c_str());
+      VARIANT vargs; VariantInit(&vargs); vargs.vt = VT_BSTR; vargs.bstrVal = SysAllocString(args.c_str());
+      VARIANT vnone; VariantInit(&vnone);
+      VARIANT vshow; VariantInit(&vshow); vshow.vt = VT_I4; vshow.lVal = SW_HIDE;
+      ok = SUCCEEDED(shell->ShellExecute(bfile, vargs, vnone, vnone, vshow));
+      SysFreeString(bfile);
+      VariantClear(&vargs);
+    }
+  }
+  if (SUCCEEDED(init)) CoUninitialize();
+  return ok;
+}
+}  // namespace
+
+// 啟動引擎服務（外殼找不到服務時、開機登入時的 RunServer、安裝完的 MsiStartEngine 都用這個）
 bool LaunchServer() {
   // MSI 版：引擎跟這個 DLL 裝在同一個資料夾（Program Files\DongNiZhuyin）；舊的安裝包版才看 HKCU 設定
   std::wstring node, script;
@@ -58,6 +110,8 @@ bool LaunchServer() {
   }
   if (node.empty()) { node = RegString(L"NodePath"); script = RegString(L"ServerScript"); }
   if (node.empty() || script.empty()) return false;
+  // 先請檔案總管代開；不行（例如沙盒程式、沒有桌面）才自己開
+  if (LaunchViaExplorer(node, L"\"" + script + L"\"")) return true;
   std::wstring cmd = L"\"" + node + L"\" \"" + script + L"\"";
   // 服務要獨立於啟動它的程式：
   // - 從 Microsoft Store／MSIX 安裝的程式（例如 Claude 桌面版）裡啟動時，子程序預設被關在那個程式的套件環境，

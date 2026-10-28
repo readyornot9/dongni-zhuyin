@@ -89,6 +89,11 @@ extern "C" void CALLBACK RunServerW(HWND, HINSTANCE, LPWSTR, int) {
 }
 
 // ── MSI 自訂動作（失敗也不讓安裝失敗） ──
+// 安裝畫面結束時（安裝者自己的 msiexec 裡）啟動引擎，裝完或升級完馬上能打字，不用登出再登入
+extern "C" UINT __stdcall MsiStartEngine(unsigned long) {
+  LaunchServer();
+  return ERROR_SUCCESS;
+}
 // 停掉懂你注音的引擎（node.exe 在 Program Files\DongNiZhuyin 或舊安裝包的 %LOCALAPPDATA%\ShunDa\app 底下），
 // 安裝新版、移除前先停，檔案才不會被占用
 extern "C" UINT __stdcall MsiStopEngine(unsigned long) {
