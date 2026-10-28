@@ -107,7 +107,9 @@ $productCode = '{' + [guid]::NewGuid().ToString().ToUpper() + '}'
 foreach ($p in @(
   @('ProductName', 'DongNi Zhuyin'), @('ProductCode', $productCode), @('ProductVersion', $version),
   @('ProductLanguage', '1033'), @('Manufacturer', 'DongNi Zhuyin'), @('UpgradeCode', $upgradeCode),
-  @('ALLUSERS', '1'), @('ARPNOMODIFY', '1'), @('SecureCustomProperties', 'OLDERFOUND'))) { Row 'Property' $p }
+  @('ALLUSERS', '1'), @('ARPNOMODIFY', '1'), @('SecureCustomProperties', 'OLDERFOUND'),
+  # 升級時一律重新複製檔案：不然 node.exe 這種版本沒變的檔案會被判定「不用複製」，接著移除舊版時又被刪掉，引擎就開不起來
+  @('REINSTALLMODE', 'amus'))) { Row 'Property' $p }
 
 Row 'Directory' @('TARGETDIR', $null, 'SourceDir')
 Row 'Directory' @('ProgramFiles64Folder', 'TARGETDIR', '.')
