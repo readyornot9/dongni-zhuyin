@@ -136,13 +136,18 @@ function check(name, cond) {
 {
   const c = new Composer(EngineLM(dict, new UserModel()));
   const out = type(c, [...keysFor('ㄏㄠˇ'), { code: 'Comma', ctrl: true }]);
-  check('Ctrl＋逗號送出全形逗號', out === '好，');
-  check('Shift＋逗號是半形 <、Shift＋1 是 !', type(c, [{ code: 'Comma', shift: true }, { code: 'Digit1', shift: true }]) === '<!');
+  check('Ctrl＋逗號是全形逗號，留在組字區不送出', out === '' && c.result.text === '好，');
+  check('Shift＋逗號是半形 <、Shift＋1 是 !', type(c, [{ code: 'Comma', shift: true }, { code: 'Digit1', shift: true }]) === '' && c.result.text === '好，<!');
   check('Ctrl＋Shift 不當標點', !c.handleKey({ code: 'Comma', ctrl: true, shift: true }).handled);
   c.handleKey({ code: 'Backquote' });
   check('` 打開符號面板', !!c.symbol);
-  const sym = type(c, [{ code: 'Digit2' }]);
-  check('符號面板用數字選', sym === '。' && !c.symbol);
+  type(c, [{ code: 'Digit2' }]);
+  check('符號面板用數字選', c.result.text === '好，<!。' && !c.symbol);
+  type(c, [...keysFor('ㄋㄧˇ'), { code: 'Home' }, { code: 'ArrowDown' }]);
+  check('打完標點還能回到前面的字選字', !!c.cand && c.cand.list.some((x) => x.w === '好'));
+  type(c, [{ code: 'Escape' }]);
+  check('按 Enter 整句送出', type(c, [{ code: 'Enter' }]) === '好，<!。你' && !c.composing);
+  check('沒在打字時按標點直接送出', type(c, [{ code: 'Comma', ctrl: true }]) === '，');
 }
 
 {
