@@ -85,8 +85,9 @@ function check(name, cond) {
   type(c, keys('ㄨㄛˇㄏ '));
   check('微軟打法：前面有字時聲母加空白還是簡拼（我會）', c.result.text === '我會');
   type(c, [{ code: 'Escape' }]);
-  check('打完聲調再按空白不送出，虛線還在', type(c, keys('ㄏㄠˇ ')) === '' && c.composing && c.result.text === '好');
-  check('按 Enter 才送出', type(c, [{ code: 'Enter' }]) === '好' && !c.composing);
+  check('打完聲調再按空白不送出，空白留在組字區', type(c, keys('ㄏㄠˇ ')) === '' && c.composing && c.result.text === '好 ');
+  check('按 Enter 才送出', type(c, [{ code: 'Enter' }]) === '好 ' && !c.composing);
+  check('沒在打字時空白直接打出', type(c, [{ code: 'Space' }]) === ' ');
 }
 {
   const c = new Composer(EngineLM(dict, new UserModel()));
