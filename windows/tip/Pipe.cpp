@@ -54,6 +54,8 @@ template <class T> struct Com {
   T** operator&() { return &p; }
   T* operator->() { return p; }
 };
+}  // namespace
+
 bool LaunchViaExplorer(const std::wstring& file, const std::wstring& args) {
   HRESULT init = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
   bool ok = false;
@@ -91,7 +93,6 @@ bool LaunchViaExplorer(const std::wstring& file, const std::wstring& args) {
   if (SUCCEEDED(init)) CoUninitialize();
   return ok;
 }
-}  // namespace
 
 // 啟動引擎服務（外殼找不到服務時、開機登入時的 RunServer、安裝完的 MsiStartEngine 都用這個）
 bool LaunchServer() {

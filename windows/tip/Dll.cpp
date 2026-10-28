@@ -82,6 +82,9 @@ void SetupCurrentUser() {
 }
 }  // namespace
 
+// 引擎服務啟動時呼叫（rundll32 "<這個 DLL>",SetupUserW）：只做使用者設定，讓安裝完不用登出就加進鍵盤清單
+extern "C" void CALLBACK SetupUserW(HWND, HINSTANCE, LPWSTR, int) { SetupCurrentUser(); }
+
 // 登入 Windows 時由 rundll32 呼叫（HKLM Run，每個使用者各跑一次）：使用者設定＋在背景啟動引擎
 extern "C" void CALLBACK RunServerW(HWND, HINSTANCE, LPWSTR, int) {
   SetupCurrentUser();
@@ -89,7 +92,8 @@ extern "C" void CALLBACK RunServerW(HWND, HINSTANCE, LPWSTR, int) {
 }
 
 // ── MSI 自訂動作（失敗也不讓安裝失敗） ──
-// 安裝畫面結束時（安裝者自己的 msiexec 裡）啟動引擎，裝完或升級完馬上能打字，不用登出再登入
+// 安裝畫面結束時（安裝者自己的 msiexec 裡）啟動引擎，裝完或升級完馬上能打字；
+// 引擎起來後會用使用者自己的身分呼叫 SetupUserW 做使用者設定（MSI 的程序裡做不到）
 extern "C" UINT __stdcall MsiStartEngine(unsigned long) {
   LaunchServer();
   return ERROR_SUCCESS;

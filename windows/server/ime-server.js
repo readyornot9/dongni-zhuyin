@@ -208,6 +208,17 @@ server.on('error', (e) => {
   log('pipe 錯誤：' + e.code);
   process.exit(e.code === 'EADDRINUSE' ? 0 : 1);
 });
-server.listen(PIPE, () => log('服務啟動：' + PIPE));
+server.listen(PIPE, () => {
+  log('服務啟動：' + PIPE);
+  // MSI 版：用使用者自己的身分做一次使用者設定（清掉舊安裝包版的設定、第一次加進鍵盤清單），
+  // 這樣安裝完引擎一啟動就能用，不用等登出再登入（輸入法 DLL 跟引擎裝在同一個資料夾）
+  const tip = path.join(root, 'ShunDaTip-x64.dll');
+  if (fs.existsSync(tip)) {
+    try {
+      require('child_process').spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'rundll32.exe'),
+        ['"' + tip + '",SetupUserW'], { detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true }).unref();
+    } catch (e) { log('使用者設定失敗：' + e.message); }
+  }
+});
 process.on('exit', () => { clearTimeout(saveTimer); });
 module.exports = { handle, PIPE };

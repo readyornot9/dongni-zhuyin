@@ -7,3 +7,4 @@ EXPORTS
   MsiStopEngine
   RemoveForUserW
   MsiStartEngine
+  SetupUserW

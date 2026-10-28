@@ -47,6 +47,8 @@ std::string JsonQuote(const std::string& s);
 
 // ── 跟引擎服務溝通 ──
 bool LaunchServer();
+// 請檔案總管代為啟動程式（不會被呼叫者的工作群組、沙盒、權限影響）
+bool LaunchViaExplorer(const std::wstring& file, const std::wstring& args);
 class PipeClient {
 public:
   ~PipeClient() { Close(); }

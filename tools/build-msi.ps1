@@ -9,7 +9,7 @@ $build = Join-Path $root 'windows\build'
 $dist = Join-Path $root 'dist'
 $work = Join-Path $dist 'msi-work'
 $msi = Join-Path $dist 'DongNiZhuyin.msi'
-$version = '0.3.3'  # 每次發布都要遞增，新版才會自動取代舊版
+$version = '0.3.5'  # 每次發布都要遞增，新版才會自動取代舊版
 $upgradeCode = '{6B1F3A52-0D44-4C1E-9E1B-4A7C2D8F5E31}'  # 固定：之後的版本靠它認出舊版
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
@@ -135,7 +135,7 @@ Row 'Registry' @('RunEngine', 2, 'Software\Microsoft\Windows\CurrentVersion\Run'
 # （用內嵌的 DLL，第一次安裝時檔案還不在；類型 65 = 內嵌 DLL＋失敗不中斷）
 # 鍵盤清單、清舊設定要用使用者自己的身分，MSI 裡做不可靠，改由登入時的 RunServerW（HKLM Run）處理，所以裝完要登出再登入
 Row 'CustomAction' @('StopEngine', 65, 'TipBin', 'MsiStopEngine', $null)
-# StartEngine：安裝畫面結束時在安裝者的 msiexec 裡啟動引擎（類型 81 = 已安裝的 DLL＋失敗不中斷）。
+# StartEngine：安裝畫面結束時啟動引擎；引擎起來後會用使用者身分做使用者設定（類型 81 = 已安裝的 DLL＋失敗不中斷）。
 # 沒有畫面的安裝（/qb、/qn）不會跑，引擎會在下次登入時啟動
 Row 'CustomAction' @('StartEngine', 81, 'TipX64', 'MsiStartEngine', $null)
 Row 'Media' @(1, $seq, $null, '#product.cab', $null, $null)
