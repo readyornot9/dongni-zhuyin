@@ -85,7 +85,8 @@ function check(name, cond) {
   type(c, keys('ㄨㄛˇㄏ '));
   check('微軟打法：前面有字時聲母加空白還是簡拼（我會）', c.result.text === '我會');
   type(c, [{ code: 'Escape' }]);
-  check('微軟打法：打完聲調再按空白，送出並打出空白', type(c, keys('ㄏㄠˇ ')) === '好 ' && !c.composing);
+  check('打完聲調再按空白不送出，虛線還在', type(c, keys('ㄏㄠˇ ')) === '' && c.composing && c.result.text === '好');
+  check('按 Enter 才送出', type(c, [{ code: 'Enter' }]) === '好' && !c.composing);
 }
 {
   const c = new Composer(EngineLM(dict, new UserModel()));
@@ -148,6 +149,18 @@ function check(name, cond) {
   type(c, [{ code: 'Escape' }]);
   check('按 Enter 整句送出', type(c, [{ code: 'Enter' }]) === '好，<!。你' && !c.composing);
   check('沒在打字時按標點直接送出', type(c, [{ code: 'Comma', ctrl: true }]) === '，');
+  type(c, [...keysFor('ㄓㄜˋ'), ...keysFor('ㄧㄤˋ'), { code: 'KeyO', shift: true }, { code: 'KeyK', shift: true }]);
+  check('Shift＋字母的大寫英文接在組字區後面，不送出', c.composing && c.result.text.endsWith('OK'));
+  type(c, [{ code: 'ArrowLeft' }, { code: 'ArrowLeft' }, { code: 'ArrowLeft' }, { code: 'ArrowDown' }]);
+  check('打完英文還能回去選前面的中文', !!c.cand);
+  type(c, [{ code: 'Escape' }, { code: 'End' }]);
+  c.toggleMode({ commit: '' });
+  check('切到英文不送出組字區', c.composing && c.mode === 'en');
+  type(c, [{ code: 'Space' }, { code: 'KeyG' }, { code: 'KeyO' }]);
+  check('英文模式打的字也接在組字區後面', c.result.text.endsWith('OK go'));
+  check('英文模式按 Enter 整句送出', type(c, [{ code: 'Enter' }]).endsWith('OK go') && !c.composing);
+  check('英文模式沒在打字時交給程式', !c.handleKey({ code: 'KeyA' }).handled);
+  c.toggleMode({ commit: '' });
 }
 
 {

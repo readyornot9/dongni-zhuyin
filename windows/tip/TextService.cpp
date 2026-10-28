@@ -78,6 +78,7 @@ STDMETHODIMP TextService::ActivateEx(ITfThreadMgr* tm, TfClientId tid, DWORD fla
     if (FAILED(hrBar)) { TipLog(L"AddItem（右下角圖示）失敗 0x%08X", (unsigned)hrBar); SafeRelease(langBar_); }
     lbm->Release();
   }
+  NotifyApp();
   TipLog(L"ActivateEx 完成");
   return S_OK;
 }
@@ -454,10 +455,25 @@ STDMETHODIMP TextService::OnCompositionTerminated(TfEditCookie ec, ITfCompositio
   return S_OK;
 }
 
-// 換到別的輸入框或視窗：先把打到一半的字送出
-STDMETHODIMP TextService::OnSetFocus(ITfDocumentMgr*, ITfDocumentMgr*) {
+// 換到別的輸入框或視窗：先把打到一半的字送出，再照這個程式切換中英
+STDMETHODIMP TextService::OnSetFocus(ITfDocumentMgr* focus, ITfDocumentMgr*) {
   CommitOnFocusLoss();
+  if (focus) NotifyApp();
   return S_OK;
+}
+
+void TextService::NotifyApp() {
+  // 輸入法 DLL 載在每個程式自己裡面，所以自己的執行檔名稱就是現在用的程式
+  static std::string app;
+  if (app.empty()) {
+    wchar_t path[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, path, MAX_PATH);
+    const wchar_t* name = wcsrchr(path, L'\\');
+    app = WideToUtf8(name ? name + 1 : path);
+  }
+  JVal reply;
+  if (pipe_.CallIfRunning("{\"t\":\"focus\",\"app\":" + JsonQuote(app) + "}", reply) && langBar_ && reply["mode"].type == JVal::Str)
+    langBar_->SetMode(reply["mode"].s == "en");
 }
 
 void TextService::CommitOnFocusLoss() {

@@ -9,7 +9,7 @@ $build = Join-Path $root 'windows\build'
 $dist = Join-Path $root 'dist'
 $work = Join-Path $dist 'msi-work'
 $msi = Join-Path $dist 'DongNiZhuyin.msi'
-$version = '0.3.6'  # 每次發布都要遞增，新版才會自動取代舊版
+$version = '0.3.7'  # 每次發布都要遞增，新版才會自動取代舊版
 $upgradeCode = '{6B1F3A52-0D44-4C1E-9E1B-4A7C2D8F5E31}'  # 固定：之後的版本靠它認出舊版
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
@@ -140,7 +140,7 @@ Row 'CustomAction' @('StopEngine', 65, 'TipBin', 'MsiStopEngine', $null)
 Row 'CustomAction' @('StartEngine', 81, 'TipX64', 'MsiStartEngine', $null)
 Row 'Media' @(1, $seq, $null, '#product.cab', $null, $null)
 # 裝新版時先移除舊版（之後的版本號要遞增）
-Row 'Upgrade' @($upgradeCode, $null, $version, $null, 256, $null, 'OLDERFOUND')  # 256 = 包含較小版本（不含相同版本）
+Row 'Upgrade' @($upgradeCode, $null, $version, $null, 768, $null, 'OLDERFOUND')  # 256＋512 = 較小版本和相同版本都換掉（開發中不升版號也能覆蓋安裝）
 
 $execSeq = @(
   @('FindRelatedProducts', 25), @('LaunchConditions', 100), @('ValidateProductID', 700), @('CostInitialize', 800),

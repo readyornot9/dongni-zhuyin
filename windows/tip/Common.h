@@ -54,6 +54,8 @@ public:
   ~PipeClient() { Close(); }
   // 送一行 JSON、等一行回覆；服務沒開就試著啟動它。失敗回傳 false（外殼就不接手這個鍵）
   bool Call(const std::string& request, JVal& reply);
+  // 跟 Call 一樣，但服務沒在跑就直接放棄（不啟動、不等），用在切換視窗這種不能卡住的地方
+  bool CallIfRunning(const std::string& request, JVal& reply);
   void Close();
 private:
   bool Connect();

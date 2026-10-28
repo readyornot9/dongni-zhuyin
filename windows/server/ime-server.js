@@ -35,12 +35,20 @@ const composer = new S.Composer(engine, { strict: stored.strict !== false });
 if (stored.stats) Object.assign(composer.stats, stored.stats);
 if (stored.mode === 'en') composer.mode = 'en';
 
+// ── 依程式切換中英 ──
+// 終端機這類打指令的程式預設英文；在某個程式切過中英就記住，下次切回那個程式自動用上次的模式
+// （記錄在 user.json 的 appModes，想重設就刪掉那一項）
+const EN_APPS = new Set(['windowsterminal.exe', 'openconsole.exe', 'conhost.exe', 'cmd.exe', 'powershell.exe', 'pwsh.exe',
+  'powershell_ise.exe', 'putty.exe', 'mintty.exe', 'wsl.exe', 'ubuntu.exe', 'kitty.exe', 'alacritty.exe', 'wezterm-gui.exe']);
+const appModes = stored.appModes || {};
+let curApp = '';
+
 let saveTimer = 0;
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const tmp = STORE + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify({ user: user.toJSON(), stats: composer.stats, mode: composer.mode, strict: composer.opts.strict }));
+    fs.writeFileSync(tmp, JSON.stringify({ user: user.toJSON(), stats: composer.stats, mode: composer.mode, strict: composer.opts.strict, appModes }));
     fs.renameSync(tmp, STORE); // 先寫暫存檔再改名，當機也不會把學習紀錄寫壞
   }, 500);
 }
@@ -94,9 +102,9 @@ function rerank() {
 
 // ── 按鍵 ──
 function willCommit(k) {
-  if (!composer.composing || composer.cand || composer.symbol || composer.mode !== 'zh' || k.alt) return false;
+  if (!composer.composing || composer.cand || composer.symbol || k.alt) return false;
   if (k.ctrl) return !!S.punctOf(k) && !composer.composing;
-  return k.code === 'Enter' || k.code === 'NumpadEnter' || (k.code === 'Space' && !composer.pending) || (!!S.punctOf(k) && !composer.composing);
+  return k.code === 'Enter' || k.code === 'NumpadEnter' || (!!S.punctOf(k) && !composer.composing);
 }
 
 // 不改狀態，只判斷這個鍵輸入法要不要接手（TSF 的 OnTestKeyDown 用）
@@ -104,8 +112,8 @@ function wouldHandle(k) {
   if (k.ctrl && k.code === 'Space') return true;
   if (k.ctrl || k.alt) return !k.alt && composer.mode === 'zh' && !composer.symbol && !composer.cand && !!S.punctOf(k);
   if (composer.symbol || composer.cand) return true;
-  if (composer.mode === 'en') return false;
   if (composer.composing) return !['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'CapsLock'].includes(k.code);
+  if (composer.mode === 'en') return false;
   if (k.code === 'Backquote' && !k.shift) return true;
   if (!k.shift && S.KEYMAP[k.code]) return true;
   if (S.punctOf(k)) return true;
@@ -142,7 +150,17 @@ function state(out) {
 
 async function handle(msg) {
   const out = { handled: false, commit: '' };
+  const modeBefore = composer.mode;
   switch (msg.t) {
+    case 'focus': { // 換到別的程式：用那個程式上次的模式，沒用過就看是不是預設英文的程式
+      const app = String(msg.app || '').toLowerCase();
+      if (app && app !== curApp) {
+        curApp = app;
+        const m = appModes[app] || (EN_APPS.has(app) ? 'en' : 'zh');
+        if (m !== composer.mode) { if (composer.composing) composer.commitAll(out); composer.toggleMode(out); }
+      }
+      return state(out);
+    }
     case 'test':
       return { handled: wouldHandle(msg) };
     case 'key': {
@@ -170,6 +188,7 @@ async function handle(msg) {
     default:
       return { error: 'unknown' };
   }
+  if (curApp && composer.mode !== modeBefore) { appModes[curApp] = composer.mode; save(); }
   if (out.commit) save();
   // 停手 NN_IDLE 毫秒才在背景複審（每個鍵都複審會讓工作堆積），送出時就直接用結果。
   // 複審在另一條執行緒算，不排進按鍵佇列，算的時候按鍵照樣馬上處理

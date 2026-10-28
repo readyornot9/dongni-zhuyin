@@ -52,6 +52,8 @@ private:
   bool CaretPoint(TfEditCookie ec, ITfContext* pic, ITfRange* range, POINT& pt, int& lineHeight);
   void CommitOnFocusLoss();
   void ShowMode(ITfContext* pic, const std::string& mode);
+  // 告訴引擎現在在哪個程式（cmd、Teams…），引擎照這個程式預設或上次用的模式切換中英
+  void NotifyApp();
   // 停手後跟引擎服務要 AI 複審完的結果，有改字就更新組字區（不用等下一個按鍵）
   void ScheduleSettle(ITfContext* pic);
   void CancelSettle();

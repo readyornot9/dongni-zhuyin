@@ -172,6 +172,14 @@ bool PipeClient::Connect() {
   return false;
 }
 
+bool PipeClient::CallIfRunning(const std::string& request, JVal& reply) {
+  if (pipe_ == INVALID_HANDLE_VALUE) {
+    pipe_ = CreateFileW(PipeName().c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
+    if (pipe_ == INVALID_HANDLE_VALUE) return false;
+  }
+  return Call(request, reply);
+}
+
 bool PipeClient::Call(const std::string& request, JVal& reply) {
   for (int retry = 0; retry < 2; retry++) {
     if (!Connect()) return false;
