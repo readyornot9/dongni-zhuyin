@@ -95,8 +95,8 @@ function rerank() {
 // ── 按鍵 ──
 function willCommit(k) {
   if (!composer.composing || composer.cand || composer.symbol || composer.mode !== 'zh' || k.alt) return false;
-  if (k.ctrl) return !!S.punctOf(k);
-  return k.code === 'Enter' || k.code === 'NumpadEnter' || (k.code === 'Space' && !composer.pending) || !!S.punctOf(k);
+  if (k.ctrl) return !!S.punctOf(k) && !composer.composing;
+  return k.code === 'Enter' || k.code === 'NumpadEnter' || (k.code === 'Space' && !composer.pending) || (!!S.punctOf(k) && !composer.composing);
 }
 
 // 不改狀態，只判斷這個鍵輸入法要不要接手（TSF 的 OnTestKeyDown 用）
