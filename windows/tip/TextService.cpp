@@ -42,6 +42,7 @@ STDMETHODIMP TextService::QueryInterface(REFIID riid, void** ppv) {
   else if (riid == IID_ITfKeyEventSink) *ppv = (ITfKeyEventSink*)this;
   else if (riid == IID_ITfCompositionSink) *ppv = (ITfCompositionSink*)this;
   else if (riid == IID_ITfThreadMgrEventSink) *ppv = (ITfThreadMgrEventSink*)this;
+  else if (riid == IID_ITfDisplayAttributeProvider) *ppv = (ITfDisplayAttributeProvider*)this;
   if (!*ppv) return E_NOINTERFACE;
   AddRef();
   return S_OK;
@@ -59,6 +60,11 @@ STDMETHODIMP TextService::ActivateEx(ITfThreadMgr* tm, TfClientId tid, DWORD fla
   tm_ = tm;
   tm_->AddRef();
   tid_ = tid;
+  ITfCategoryMgr* cm = nullptr;
+  if (SUCCEEDED(CoCreateInstance(CLSID_TF_CategoryMgr, nullptr, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr, (void**)&cm))) {
+    cm->RegisterGUID(GUID_DongNiInputAttr, &inputAttr_);
+    cm->Release();
+  }
   ITfSource* src = nullptr;
   if (SUCCEEDED(tm_->QueryInterface(IID_ITfSource, (void**)&src))) {
     src->AdviseSink(IID_ITfThreadMgrEventSink, (ITfThreadMgrEventSink*)this, &tmSinkCookie_);
@@ -438,6 +444,7 @@ void TextService::SetCompositionText(TfEditCookie ec, ITfContext* pic, const std
   ULONG got = 0;
   if (FAILED(r->GetText(ec, 0, &cur[0], (ULONG)cur.size(), &got)) || got != text.size() || cur.compare(0, got, text) != 0)
     r->SetText(ec, 0, text.c_str(), (LONG)text.size());
+  SetInputAttr(ec, pic, r, true);
   // 把程式的游標放到組字區裡對應的位置
   ITfRange* at = nullptr;
   if (SUCCEEDED(r->Clone(&at))) {
@@ -455,10 +462,27 @@ void TextService::SetCompositionText(TfEditCookie ec, ITfContext* pic, const std
   r->Release();
 }
 
+void TextService::SetInputAttr(TfEditCookie ec, ITfContext* pic, ITfRange* range, bool on) {
+  if (inputAttr_ == TF_INVALID_GUIDATOM) return;
+  ITfProperty* prop = nullptr;
+  if (FAILED(pic->GetProperty(GUID_PROP_ATTRIBUTE, &prop))) return;
+  if (on) {
+    VARIANT v;
+    VariantInit(&v);
+    v.vt = VT_I4;
+    v.lVal = (LONG)inputAttr_;
+    prop->SetValue(ec, range, &v);
+  } else {
+    prop->Clear(ec, range);
+  }
+  prop->Release();
+}
+
 void TextService::EndComposition(TfEditCookie ec, ITfContext* pic) {
   if (!comp_) return;
   ITfRange* r = nullptr;
   if (SUCCEEDED(comp_->GetRange(&r))) {
+    SetInputAttr(ec, pic, r, false);  // 送出的字不要留著底線
     r->Collapse(ec, TF_ANCHOR_END);
     TF_SELECTION sel = {};
     sel.range = r;
@@ -504,6 +528,8 @@ STDMETHODIMP TextService::OnCompositionTerminated(TfEditCookie ec, ITfCompositio
     ITfRange* r = nullptr;
     if (!text.empty() && SUCCEEDED(comp->GetRange(&r))) {
       r->SetText(ec, 0, text.c_str(), (LONG)text.size());
+      ITfContext* ctx = nullptr;
+      if (SUCCEEDED(r->GetContext(&ctx))) { SetInputAttr(ec, ctx, r, false); ctx->Release(); }
       r->Release();
     }
   }

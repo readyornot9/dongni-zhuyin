@@ -22,7 +22,7 @@ set OBJ=%OUT%\obj-%1
 if not exist "%OBJ%" mkdir "%OBJ%"
 rc /nologo /fo "%OBJ%\ShunDaTip.res" "%ROOT%tip\ShunDaTip.rc" || exit /b 1
 cl /nologo /utf-8 /std:c++17 /O2 /MT /EHsc /W3 /DUNICODE /D_UNICODE /Fo"%OBJ%\\" ^
-  "%ROOT%tip\Dll.cpp" "%ROOT%tip\TextService.cpp" "%ROOT%tip\CandWnd.cpp" "%ROOT%tip\Pipe.cpp" "%ROOT%tip\Util.cpp" "%ROOT%tip\LangBar.cpp" ^
+  "%ROOT%tip\Dll.cpp" "%ROOT%tip\TextService.cpp" "%ROOT%tip\CandWnd.cpp" "%ROOT%tip\Pipe.cpp" "%ROOT%tip\Util.cpp" "%ROOT%tip\LangBar.cpp" "%ROOT%tip\DisplayAttr.cpp" ^
   "%OBJ%\ShunDaTip.res" /LD /Fe"%OUT%\ShunDaTip-%1.dll" ^
   /link /DEF:"%ROOT%tip\ShunDaTip.def" user32.lib gdi32.lib advapi32.lib ole32.lib uuid.lib winmm.lib oleaut32.lib || exit /b 1
 endlocal

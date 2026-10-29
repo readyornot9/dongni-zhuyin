@@ -40,6 +40,7 @@ const GUID* kCategories[] = {
   &GUID_TFCAT_TIP_KEYBOARD,
   &GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,  // 出現在工作列的輸入法切換清單
   &GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,  // 新式文字框架的程式（新版記事本、Teams、搜尋框）只載入有這項的輸入法
+  &GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,  // 提供組字區外觀（虛線底線），記事本這類程式才會畫底線
 };
 }  // namespace
 

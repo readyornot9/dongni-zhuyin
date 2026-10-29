@@ -5,7 +5,8 @@
 class TextService : public ITfTextInputProcessorEx,
                     public ITfKeyEventSink,
                     public ITfCompositionSink,
-                    public ITfThreadMgrEventSink {
+                    public ITfThreadMgrEventSink,
+                    public ITfDisplayAttributeProvider {
 public:
   TextService();
   ~TextService();
@@ -31,6 +32,10 @@ public:
   // ITfCompositionSink
   STDMETHODIMP OnCompositionTerminated(TfEditCookie ec, ITfComposition* comp) override;
 
+  // ITfDisplayAttributeProvider：告訴程式組字區畫虛線底線
+  STDMETHODIMP EnumDisplayAttributeInfo(IEnumTfDisplayAttributeInfo** out) override { return CreateDisplayAttrEnum(out); }
+  STDMETHODIMP GetDisplayAttributeInfo(REFGUID guid, ITfDisplayAttributeInfo** out) override { return CreateDisplayAttrInfo(guid, out); }
+
   // ITfThreadMgrEventSink
   STDMETHODIMP OnInitDocumentMgr(ITfDocumentMgr*) override { return S_OK; }
   STDMETHODIMP OnUninitDocumentMgr(ITfDocumentMgr*) override { return S_OK; }
@@ -52,6 +57,8 @@ private:
   bool CaretPoint(TfEditCookie ec, ITfContext* pic, ITfRange* range, POINT& pt, int& lineHeight);
   void CommitOnFocusLoss();
   void ShowMode(ITfContext* pic, const std::string& mode);
+  // 組字區標上虛線底線的外觀；送出前清掉
+  void SetInputAttr(TfEditCookie ec, ITfContext* pic, ITfRange* range, bool on);
   // 告訴引擎現在在哪個程式（cmd、Teams…），引擎照這個程式預設或上次用的模式切換中英
   void NotifyApp();
   // 停手後跟引擎服務要 AI 複審完的結果，有改字就更新組字區（不用等下一個按鍵）
@@ -85,6 +92,7 @@ private:
   ITfContext* settleCtx_ = nullptr;
   UINT_PTR settleTimer_ = 0;
   UINT_PTR candMoveTimer_ = 0;
+  TfGuidAtom inputAttr_ = TF_INVALID_GUIDATOM;
   int candCharAt_ = 0;   // 選字窗要對齊的字（組字區裡第幾個字，0 = 開頭）
   int candMoveTries_ = 0;
   int settleTries_ = 0;

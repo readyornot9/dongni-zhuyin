@@ -45,6 +45,11 @@ struct JVal {
 bool JsonParse(const std::string& text, JVal& out);
 std::string JsonQuote(const std::string& s);
 
+// 組字區外觀（DisplayAttr.cpp）
+extern const GUID GUID_DongNiInputAttr;
+HRESULT CreateDisplayAttrEnum(IEnumTfDisplayAttributeInfo** out);
+HRESULT CreateDisplayAttrInfo(REFGUID guid, ITfDisplayAttributeInfo** out);
+
 // ── 跟引擎服務溝通 ──
 bool LaunchServer();
 // 請檔案總管代為啟動程式（不會被呼叫者的工作群組、沙盒、權限影響）
