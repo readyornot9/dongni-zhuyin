@@ -26,6 +26,7 @@ template <class T> void SafeRelease(T*& p) { if (p) { p->Release(); p = nullptr;
 bool Down(int vk) { return (GetKeyState(vk) & 0x8000) != 0; }
 // 計時器回呼找得到是哪個 TextService：每條 UI 執行緒只有一個
 thread_local TextService* t_settleOwner = nullptr;
+thread_local TextService* t_candOwner = nullptr;
 const UINT kSettleDelayMs = 200;   // 停手多久開始問
 const UINT kSettlePollMs = 100;    // 複審還沒好，隔多久再問
 const int kSettleMaxTries = 15;
@@ -85,6 +86,7 @@ STDMETHODIMP TextService::ActivateEx(ITfThreadMgr* tm, TfClientId tid, DWORD fla
 
 STDMETHODIMP TextService::Deactivate() {
   TipLog(L"Deactivate");
+  if (candMoveTimer_) { KillTimer(nullptr, candMoveTimer_); candMoveTimer_ = 0; }
   CancelSettle();
   CommitOnFocusLoss();
   cand_.Hide();
@@ -319,7 +321,7 @@ void TextService::Apply(ITfContext* pic, const JVal& reply) {
   int caret = (int)reply["caret"].n;
   lastPreedit_ = preedit;
   if (langBar_ && reply["mode"].type == JVal::Str) langBar_->SetMode(reply["mode"].s == "en");
-  bool gotPoint = false;
+  bool gotPoint = false, charOk = false;
   POINT pt = {};
   int lh = lineHeight_;
   EditSync(pic, TF_ES_READWRITE, [&](TfEditCookie ec) {
@@ -340,17 +342,9 @@ void TextService::Apply(ITfContext* pic, const JVal& reply) {
         if (SUCCEEDED(comp_->GetRange(&r))) {
           // 選字中：選字窗對齊要換的那個字；不然對齊組字區開頭
           const JVal& at = reply["cand"]["at"];
-          ITfRange* ch = nullptr;
-          if (at.type == JVal::Num && at.n > 0 && SUCCEEDED(r->Clone(&ch))) {
-            LONG moved = 0;
-            ch->Collapse(ec, TF_ANCHOR_START);
-            ch->ShiftStart(ec, (LONG)at.n, &moved, nullptr);
-            ch->Collapse(ec, TF_ANCHOR_START);
-            ch->ShiftEnd(ec, 1, &moved, nullptr);
-            gotPoint = CaretPoint(ec, pic, ch, pt, lh);
-            ch->Release();
-          }
-          if (!gotPoint) gotPoint = CaretPoint(ec, pic, r, pt, lh);
+          candCharAt_ = at.type == JVal::Num ? (int)at.n : 0;
+          if (candCharAt_ > 0) charOk = CharPoint(ec, pic, candCharAt_, pt, lh);
+          gotPoint = charOk || CaretPoint(ec, pic, r, pt, lh);
           r->Release();
         }
       }
@@ -367,10 +361,58 @@ void TextService::Apply(ITfContext* pic, const JVal& reply) {
     for (const JVal& v : cand["items"].a) items.push_back(Utf8ToWide(v.s));
     cand_.Show(candAt_, lineHeight_, items, (int)cand["hi"].n, (int)cand["page"].n, (int)cand["pages"].n, Utf8ToWide(cand["title"].s));
     candVisible_ = true;
+    if (candCharAt_ > 0 && !charOk) { candMoveTries_ = 0; ScheduleCandMove(); }
   } else if (candVisible_) {
     cand_.Hide();
     candVisible_ = false;
   }
+}
+
+bool TextService::CharPoint(TfEditCookie ec, ITfContext* pic, int charAt, POINT& pt, int& lh) {
+  ITfRange* r = nullptr;
+  ITfRange* ch = nullptr;
+  bool ok = false;
+  if (comp_ && SUCCEEDED(comp_->GetRange(&r)) && SUCCEEDED(r->Clone(&ch))) {
+    LONG moved = 0;
+    ch->Collapse(ec, TF_ANCHOR_START);
+    ch->ShiftStart(ec, charAt, &moved, nullptr);
+    ch->Collapse(ec, TF_ANCHOR_START);
+    ch->ShiftEnd(ec, 1, &moved, nullptr);
+    POINT start = {};
+    int startLh = 0;
+    ok = moved == 1 && CaretPoint(ec, pic, ch, pt, lh);
+    // 有些程式對還沒排版的字回傳整個組字區的位置：跟開頭一樣就當作沒算到（第一個字以外）
+    if (ok && CaretPoint(ec, pic, r, start, startLh) && start.x == pt.x && start.y == pt.y) ok = false;
+  }
+  SafeRelease(ch);
+  SafeRelease(r);
+  return ok;
+}
+
+void TextService::ScheduleCandMove() {
+  if (candMoveTimer_) KillTimer(nullptr, candMoveTimer_);
+  t_candOwner = this;
+  candMoveTimer_ = SetTimer(nullptr, 0, 40, CandMoveTimerProc);
+}
+
+void CALLBACK TextService::CandMoveTimerProc(HWND, UINT, UINT_PTR id, DWORD) {
+  KillTimer(nullptr, id);
+  TextService* self = t_candOwner;
+  if (!self || self->candMoveTimer_ != id) return;
+  self->candMoveTimer_ = 0;
+  if (!self->candVisible_ || !self->comp_ || !self->tm_) return;
+  ITfDocumentMgr* dm = nullptr;
+  ITfContext* pic = nullptr;
+  bool ok = false;
+  POINT pt = {};
+  int lh = self->lineHeight_;
+  if (SUCCEEDED(self->tm_->GetFocus(&dm)) && dm && SUCCEEDED(dm->GetTop(&pic)) && pic)
+    self->EditSync(pic, TF_ES_READ, [&](TfEditCookie ec) { ok = self->CharPoint(ec, pic, self->candCharAt_, pt, lh); });
+  SafeRelease(pic);
+  SafeRelease(dm);
+  if (ok) { self->candAt_ = pt; self->cand_.MoveTo(pt, lh); }
+  else if (++self->candMoveTries_ < 10) self->ScheduleCandMove();
+  else TipLog(L"選字窗：算不到第 %d 個字的位置，留在組字區開頭", self->candCharAt_);
 }
 
 void TextService::StartComposition(TfEditCookie ec, ITfContext* pic) {
@@ -391,7 +433,11 @@ void TextService::StartComposition(TfEditCookie ec, ITfContext* pic) {
 void TextService::SetCompositionText(TfEditCookie ec, ITfContext* pic, const std::wstring& text, int caret) {
   ITfRange* r = nullptr;
   if (FAILED(comp_->GetRange(&r))) return;
-  r->SetText(ec, 0, text.c_str(), (LONG)text.size());
+  // 字沒變（例如按 ↓ 開選字窗、移游標）就不重設：重設會讓程式重新排版，一時算不到字的位置
+  std::wstring cur(text.size() + 1, wchar_t(0));
+  ULONG got = 0;
+  if (FAILED(r->GetText(ec, 0, &cur[0], (ULONG)cur.size(), &got)) || got != text.size() || cur.compare(0, got, text) != 0)
+    r->SetText(ec, 0, text.c_str(), (LONG)text.size());
   // 把程式的游標放到組字區裡對應的位置
   ITfRange* at = nullptr;
   if (SUCCEEDED(r->Clone(&at))) {

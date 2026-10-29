@@ -61,6 +61,11 @@ private:
   // 不在按鍵事件裡（計時器、點右下角圖示）時更新文件：只能要求非同步編輯，參數都用值傳
   void ApplyAsync(ITfContext* pic, const std::wstring& commit, const std::wstring& preedit, int caret);
   void ToggleFromLangBar();
+  // 選字窗對齊組字區裡第 charAt 個字；算得到回傳 true
+  bool CharPoint(TfEditCookie ec, ITfContext* pic, int charAt, POINT& pt, int& lh);
+  // 有些程式（Chrome、Teams）剛改完字還沒排版，算不到字的位置：等一下再算一次，把選字窗移過去
+  void ScheduleCandMove();
+  static void CALLBACK CandMoveTimerProc(HWND, UINT, UINT_PTR, DWORD);
   static void CALLBACK SettleTimerProc(HWND, UINT, UINT_PTR, DWORD);
 
   LONG ref_ = 1;
@@ -79,6 +84,9 @@ private:
   std::wstring lastPreedit_;
   ITfContext* settleCtx_ = nullptr;
   UINT_PTR settleTimer_ = 0;
+  UINT_PTR candMoveTimer_ = 0;
+  int candCharAt_ = 0;   // 選字窗要對齊的字（組字區裡第幾個字，0 = 開頭）
+  int candMoveTries_ = 0;
   int settleTries_ = 0;
   LangBarButton* langBar_ = nullptr;
 };

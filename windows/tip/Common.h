@@ -73,6 +73,8 @@ public:
   void Show(const POINT& at, int lineHeight, const std::vector<std::wstring>& items, int hi, int page, int pages, const std::wstring& title);
   void ShowMessage(const POINT& at, int lineHeight, const std::wstring& text, UINT ms);
   void Hide();
+  // 選字窗開著時換位置（內容不變）
+  void MoveTo(const POINT& at, int lineHeight);
   static void UnregisterClass();
 private:
   bool Ensure();

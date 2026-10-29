@@ -50,6 +50,10 @@ void CandidateWindow::Show(const POINT& at, int lineHeight, const std::vector<st
   Layout(at, lineHeight);
 }
 
+void CandidateWindow::MoveTo(const POINT& at, int lineHeight) {
+  if (hwnd_ && IsWindowVisible(hwnd_) && message_.empty()) Layout(at, lineHeight);
+}
+
 void CandidateWindow::ShowMessage(const POINT& at, int lineHeight, const std::wstring& text, UINT ms) {
   if (!Ensure()) return;
   items_.clear(); title_.clear(); message_ = text;

@@ -9,7 +9,7 @@ $build = Join-Path $root 'windows\build'
 $dist = Join-Path $root 'dist'
 $work = Join-Path $dist 'msi-work'
 $msi = Join-Path $dist 'DongNiZhuyin.msi'
-$version = '0.3.7'  # 每次發布都要遞增，新版才會自動取代舊版
+$version = '0.3.8'  # 每次發布都要遞增，新版才會自動取代舊版
 $upgradeCode = '{6B1F3A52-0D44-4C1E-9E1B-4A7C2D8F5E31}'  # 固定：之後的版本靠它認出舊版
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
