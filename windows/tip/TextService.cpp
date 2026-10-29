@@ -338,7 +338,19 @@ void TextService::Apply(ITfContext* pic, const JVal& reply) {
         SetCompositionText(ec, pic, preedit, caret);
         ITfRange* r = nullptr;
         if (SUCCEEDED(comp_->GetRange(&r))) {
-          gotPoint = CaretPoint(ec, pic, r, pt, lh);
+          // 選字中：選字窗對齊要換的那個字；不然對齊組字區開頭
+          const JVal& at = reply["cand"]["at"];
+          ITfRange* ch = nullptr;
+          if (at.type == JVal::Num && at.n > 0 && SUCCEEDED(r->Clone(&ch))) {
+            LONG moved = 0;
+            ch->Collapse(ec, TF_ANCHOR_START);
+            ch->ShiftStart(ec, (LONG)at.n, &moved, nullptr);
+            ch->Collapse(ec, TF_ANCHOR_START);
+            ch->ShiftEnd(ec, 1, &moved, nullptr);
+            gotPoint = CaretPoint(ec, pic, ch, pt, lh);
+            ch->Release();
+          }
+          if (!gotPoint) gotPoint = CaretPoint(ec, pic, r, pt, lh);
           r->Release();
         }
       }

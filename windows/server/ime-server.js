@@ -110,7 +110,7 @@ function willCommit(k) {
 // 不改狀態，只判斷這個鍵輸入法要不要接手（TSF 的 OnTestKeyDown 用）
 function wouldHandle(k) {
   if (k.ctrl && k.code === 'Space') return true;
-  if (k.ctrl || k.alt) return !k.alt && composer.mode === 'zh' && !composer.symbol && !composer.cand && !!S.punctOf(k);
+  if (k.ctrl || k.alt) return !k.alt && !composer.symbol && !composer.cand && !!S.punctOf(k);
   if (composer.symbol || composer.cand) return true;
   if (composer.composing) return !['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'CapsLock'].includes(k.code);
   if (composer.mode === 'en') return false;
@@ -124,12 +124,16 @@ function wouldHandle(k) {
 function state(out) {
   const v = composer.view();
   const preeditOf = () => v.nodes.map((n) => n.w).join('');
-  let preedit = preeditOf(), caret = 0;
-  // 游標位置：游標前面有幾個音節，就是前面有幾個字（詞庫沒有的音節整段顯示注音，算到它後面）
-  for (const n of v.nodes) {
-    if (n.e <= v.cursor) caret += [...n.w].length;
-    else if (n.s < v.cursor) caret += [...n.w].length === n.e - n.s ? v.cursor - n.s : [...n.w].length;
-  }
+  // 第 idx 個音節前面有幾個字（詞庫沒有的音節整段顯示注音，算到它後面）
+  const charsBefore = (idx) => {
+    let k = 0;
+    for (const n of v.nodes) {
+      if (n.e <= idx) k += [...n.w].length;
+      else if (n.s < idx) k += [...n.w].length === n.e - n.s ? idx - n.s : [...n.w].length;
+    }
+    return k;
+  };
+  let preedit = preeditOf(), caret = charsBefore(v.cursor);
   if (composer.pending) {
     // 還在打的音節：顯示注音本身，看得出現在打到哪
     const chars = [...preedit];
@@ -141,6 +145,9 @@ function state(out) {
   if (composer.cand) {
     const ps = composer.opts.pageSize;
     cand = { items: composer.candPage().map((c) => c.w), hi: composer.cand.hi % ps, page: composer.cand.page, pages: Math.ceil(composer.cand.list.length / ps) };
+    // 選字窗開在要換的那個字底下（不是組字區最左邊）
+    const sel = composer.cand.list[composer.cand.hi];
+    if (sel) cand.at = charsBefore(sel.s);
   } else if (composer.symbol) {
     const s = composer.symbol;
     cand = { items: composer.symbolPage(), hi: -1, page: s.page, pages: Math.ceil(S.SYMBOLS[s.cat].items.length / composer.opts.pageSize), title: S.SYMBOLS[s.cat].name };

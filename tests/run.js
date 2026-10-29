@@ -125,6 +125,13 @@ function check(name, cond) {
   const v = c.view();
   check(`只打聲母時最後一個字也先猜好（得到 ${v.nodes.map((n) => n.w).join('')}）`, v.nodes.map((n) => n.w).join('') === '大家好' && v.pendingIndex === 2);
   type(c, [{ code: 'Space' }]);
+  {
+    const d = new Composer(EngineLM(dict, new UserModel()));
+    type(d, keysFor('ㄋㄧˇ'));
+    type(d, [{ code: 'KeyA' }, { code: 'KeyP' }]);
+    d.toggleMode({ commit: '' });
+    check('想打英文卻打成注音（ㄇㄣ），切英文時把沒打完的注音清掉', d.mode === 'en' && !d.pending && d.result.text === '你');
+  }
   check('ㄏ 按空白鍵：結束這個音但不送出，仍是「大家好」', c.composing && !c.pending && c.result.text === '大家好');
   type(c, [{ code: 'ArrowDown' }]);
   check('接著按 ↓ 可以選字，第一個候選是「大家好」', !!c.cand && c.cand.list[0].w === '大家好');
@@ -149,7 +156,8 @@ function check(name, cond) {
   check('打完標點還能回到前面的字選字', !!c.cand && c.cand.list.some((x) => x.w === '好'));
   type(c, [{ code: 'Escape' }]);
   check('按 Enter 整句送出', type(c, [{ code: 'Enter' }]) === '好，<!。你' && !c.composing);
-  check('沒在打字時按標點直接送出', type(c, [{ code: 'Comma', ctrl: true }]) === '，');
+  check('沒在打字時按標點也有底線（像微軟注音），不直接送出', type(c, [{ code: 'Comma', ctrl: true }]) === '' && c.composing && c.result.text === '，');
+  check('標點後按 Enter 才送出', type(c, [{ code: 'Enter' }]) === '，' && !c.composing);
   type(c, [...keysFor('ㄓㄜˋ'), ...keysFor('ㄧㄤˋ'), { code: 'KeyO', shift: true }, { code: 'KeyK', shift: true }]);
   check('Shift＋字母的大寫英文接在組字區後面，不送出', c.composing && c.result.text.endsWith('OK'));
   type(c, [{ code: 'ArrowLeft' }, { code: 'ArrowLeft' }, { code: 'ArrowLeft' }, { code: 'ArrowDown' }]);
@@ -161,6 +169,7 @@ function check(name, cond) {
   check('英文模式打的字也接在組字區後面', c.result.text.endsWith('OK go'));
   check('英文模式按 Enter 整句送出', type(c, [{ code: 'Enter' }]).endsWith('OK go') && !c.composing);
   check('英文模式沒在打字時交給程式', !c.handleKey({ code: 'KeyA' }).handled);
+  check('英文模式 Ctrl＋逗號也能打全形逗號', type(c, [{ code: 'Comma', ctrl: true }]) === '，' && !c.composing);
   c.toggleMode({ commit: '' });
 }
 
