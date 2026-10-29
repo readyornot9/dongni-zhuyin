@@ -88,6 +88,9 @@ function check(name, cond) {
   check('打完聲調再按空白不送出，空白留在組字區', type(c, keys('ㄏㄠˇ ')) === '' && c.composing && c.result.text === '好 ');
   check('按 Enter 才送出', type(c, [{ code: 'Enter' }]) === '好 ' && !c.composing);
   check('沒在打字時空白直接打出', type(c, [{ code: 'Space' }]) === ' ');
+  type(c, [...keysFor('ㄋㄧˇ ㄧㄠˋ ㄗㄞˋ'), { code: 'Space' }, ...keysFor('ㄕˋ ㄕˋ ㄎㄢˋ ㄇㄚ˙')]);
+  check('組字區裡的空白不切斷前後文（你要再 試試看嗎，得到 ' + c.result.text + '）', c.result.text === '你要再 試試看嗎');
+  type(c, [{ code: 'Escape' }]);
 }
 {
   const c = new Composer(EngineLM(dict, new UserModel()));
