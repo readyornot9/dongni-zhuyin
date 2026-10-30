@@ -88,10 +88,14 @@ if (WIKI_WEIGHT > 0 && fs.existsSync(wikiFile)) {
   }
 }
 
+// 簡體字不收（只給台灣使用者用）：含 data/simplified.txt 裡任何一個字的單字和詞都跳過
+const simplified = new Set([...fs.readFileSync(path.join(root, 'data', 'simplified.txt'), 'utf8').split(/\r?\n/).filter((l) => l && !l.startsWith('#')).join('')]);
+const hasSimplified = (w) => [...w].some((ch) => simplified.has(ch));
+
 const entries = new Map(); // key: 詞\t注音 → 分數
 function add(word, reading, rare) {
   const key = word + '\t' + reading;
-  if (entries.has(key)) return;
+  if (entries.has(key) || hasSimplified(word)) return;
   let n = occ.get(word) || 0;
   const share = [...word].length === 1 ? readingShare(word, reading) : phraseShare(word, reading);
   n *= share;

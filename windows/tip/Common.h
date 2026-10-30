@@ -75,7 +75,9 @@ class CandidateWindow {
 public:
   ~CandidateWindow();
   // items：這一頁的候選字；hi：高亮第幾個（-1 不高亮）
-  void Show(const POINT& at, int lineHeight, const std::vector<std::wstring>& items, int hi, int page, int pages, const std::wstring& title);
+  // cols > 0：攤開成表格，每列 cols 個，第 numRow 列標上 1～9
+  void Show(const POINT& at, int lineHeight, const std::vector<std::wstring>& items, int hi, int page, int pages, const std::wstring& title,
+            int cols = 0, int numRow = -1);
   void ShowMessage(const POINT& at, int lineHeight, const std::wstring& text, UINT ms);
   void Hide();
   // 選字窗開著時換位置（內容不變）
@@ -90,7 +92,8 @@ private:
   HFONT font_ = nullptr;
   int fontDpi_ = 0;
   std::vector<std::wstring> items_;
-  int hi_ = -1, page_ = 0, pages_ = 1;
+  int hi_ = -1, page_ = 0, pages_ = 1, cols_ = 0, numRow_ = -1;
+  int cellW_ = 0;  // 表格模式每格的寬度（Layout 量好給 Paint 用）
   std::wstring title_, message_;
 };
 

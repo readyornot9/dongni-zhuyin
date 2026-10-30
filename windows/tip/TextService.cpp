@@ -365,7 +365,10 @@ void TextService::Apply(ITfContext* pic, const JVal& reply) {
   if (cand.type == JVal::Obj) {
     std::vector<std::wstring> items;
     for (const JVal& v : cand["items"].a) items.push_back(Utf8ToWide(v.s));
-    cand_.Show(candAt_, lineHeight_, items, (int)cand["hi"].n, (int)cand["page"].n, (int)cand["pages"].n, Utf8ToWide(cand["title"].s));
+    const JVal& cols = cand["cols"];
+    const JVal& numRow = cand["numRow"];
+    cand_.Show(candAt_, lineHeight_, items, (int)cand["hi"].n, (int)cand["page"].n, (int)cand["pages"].n, Utf8ToWide(cand["title"].s),
+               cols.type == JVal::Num ? (int)cols.n : 0, numRow.type == JVal::Num ? (int)numRow.n : -1);
     candVisible_ = true;
     if (candCharAt_ > 0 && !charOk) { candMoveTries_ = 0; ScheduleCandMove(); }
   } else if (candVisible_) {

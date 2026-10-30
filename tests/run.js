@@ -91,6 +91,34 @@ function check(name, cond) {
   type(c, [...keysFor('ㄋㄧˇ ㄧㄠˋ ㄗㄞˋ'), { code: 'Space' }, ...keysFor('ㄕˋ ㄕˋ ㄎㄢˋ ㄇㄚ˙')]);
   check('組字區裡的空白不切斷前後文（你要再 試試看嗎，得到 ' + c.result.text + '）', c.result.text === '你要再 試試看嗎');
   type(c, [{ code: 'Escape' }]);
+  check('沒在打字時半形符號直接送出，不開組字區', type(c, [{ code: 'Digit1', shift: true }]) === '!' && !c.composing);
+  check('沒在打字時全形標點還是放進組字區', type(c, [{ code: 'BracketLeft' }]) === '' && c.composing);
+  type(c, [{ code: 'Escape' }]);
+  check('組字區有字時半形符號接在後面', type(c, [...keysFor('ㄏㄠˇ'), { code: 'Digit1', shift: true }]) === '' && c.result.text === '好!');
+  type(c, [{ code: 'Escape' }]);
+  // 按 → 把候選字攤開成表格
+  type(c, [...keysFor('ㄕˋ'), { code: 'ArrowDown' }]);
+  const total = c.cand.list.length;
+  type(c, [{ code: 'ArrowRight' }]);
+  check(`選字窗按 → 全部展開（${total} 個）`, c.cand.expanded && c.candGrid().items.length === Math.min(total, 54));
+  type(c, [{ code: 'ArrowDown' }, { code: 'ArrowRight' }]);
+  check('展開後方向鍵移動（↓ 到第二列、→ 下一個）', c.cand.hi === 10 && c.candGrid().hiRow === 1);
+  const want = c.cand.list[9 + 2].w;
+  type(c, [{ code: 'Digit3' }]);
+  check(`數字選高亮那一列的第幾個（選到 ${want}）`, !c.cand && c.result.text === want);
+  type(c, [{ code: 'ArrowDown' }, { code: 'ArrowRight' }, { code: 'Escape' }]);
+  check('Esc 收回成一般選字窗', c.cand && !c.cand.expanded);
+  type(c, [{ code: 'Escape' }, { code: 'Escape' }]);
+}
+{
+  // 打到一半的預設字（後面還沒打）
+  const e = EngineLM(dict, new UserModel());
+  const conv = (r) => { const s = parseReading(r.replace(/\*/g, '')); r.split(' ').forEach((t, i) => { if (t.endsWith('*')) s[i].tone = null; }); return e.convert(s).text; };
+  for (const [r, w] of [['ㄗㄞˋ ㄍㄞˇ ㄕㄢˋ', '再改善'], ['ㄨㄛˇ ㄉㄚˇ ㄗㄞˋ ㄍㄞˇ ㄕㄢˋ', '我打再改善'], ['ㄨㄛˇ ㄇㄣ˙ ㄗㄞˋ ㄍㄞˇ ㄕㄢˋ', '我們在改善'],
+    ['ㄗㄞˋ ㄍㄞˇ ㄕㄢˋ ㄇㄚ*', '再改善嗎'], ['ㄅㄨˊ ㄩㄥˋ ㄅㄤ ㄨㄛˇ ㄐㄧㄚ', '不用幫我加'], ['ㄅㄤ ㄨㄛˇ ㄐㄧㄚ ㄖㄣˊ', '幫我家人'], ['ㄨㄛˇ ㄇㄚ', '我媽']]) {
+    const got = conv(r);
+    check(`打到一半：${w}（得到 ${got}）`, got === w);
+  }
 }
 {
   const c = new Composer(EngineLM(dict, new UserModel()));

@@ -43,10 +43,12 @@ bool CandidateWindow::Ensure() {
   return hwnd_ != nullptr;
 }
 
-void CandidateWindow::Show(const POINT& at, int lineHeight, const std::vector<std::wstring>& items, int hi, int page, int pages, const std::wstring& title) {
+void CandidateWindow::Show(const POINT& at, int lineHeight, const std::vector<std::wstring>& items, int hi, int page, int pages, const std::wstring& title,
+                           int cols, int numRow) {
   if (!Ensure()) return;
   KillTimer(hwnd_, kHideTimer);
   items_ = items; hi_ = hi; page_ = page; pages_ = pages; title_ = title; message_.clear();
+  cols_ = cols; numRow_ = numRow;
   Layout(at, lineHeight);
 }
 
@@ -56,7 +58,7 @@ void CandidateWindow::MoveTo(const POINT& at, int lineHeight) {
 
 void CandidateWindow::ShowMessage(const POINT& at, int lineHeight, const std::wstring& text, UINT ms) {
   if (!Ensure()) return;
-  items_.clear(); title_.clear(); message_ = text;
+  items_.clear(); title_.clear(); message_ = text; cols_ = 0;
   Layout(at, lineHeight);
   SetTimer(hwnd_, kHideTimer, ms, nullptr);
 }
@@ -91,6 +93,13 @@ void CandidateWindow::Layout(const POINT& at, int lineHeight) {
   ReleaseDC(hwnd_, dc);
   int rows = message_.empty() ? (int)items_.size() + extra : 1;
   int w = pad * 2 + numW + max(textW, MulDiv(48, dpi, 96)), h = pad * 2 + rows * rowH;
+  if (cols_ > 0 && message_.empty()) {
+    // 表格：每格一樣寬（數字＋最長的詞），一列 cols_ 格
+    cellW_ = numW + textW + pad;
+    int gridRows = ((int)items_.size() + cols_ - 1) / cols_;
+    w = pad * 2 + cellW_ * cols_;
+    h = pad * 2 + (gridRows + extra) * rowH;
+  }
   // 放在組字區下方；超出螢幕就放上方、往左移
   MONITORINFO mi = { sizeof(mi) };
   GetMonitorInfoW(MonitorFromPoint(at, MONITOR_DEFAULTTONEAREST), &mi);
@@ -128,6 +137,35 @@ void CandidateWindow::Paint(HDC dc) {
       SetTextColor(dc, kDim);
       TextOutW(dc, pad, y + (rowH - tm.tmHeight) / 2, title_.c_str(), (int)title_.size());
       y += rowH;
+    }
+    if (cols_ > 0) {
+      for (size_t i = 0; i < items_.size(); i++) {
+        int row = (int)i / cols_, col = (int)i % cols_;
+        int x = pad + col * cellW_, cy = y + row * rowH;
+        if ((int)i == hi_) {
+          RECT r = { x - pad / 2, cy, x + cellW_ - pad / 2, cy + rowH };
+          HBRUSH b = CreateSolidBrush(kHi);
+          FillRect(dc, &r, b);
+          DeleteObject(b);
+        }
+        if (row == numRow_) {
+          wchar_t num[4];
+          swprintf_s(num, L"%d", col + 1);
+          SetTextColor(dc, kDim);
+          TextOutW(dc, x, cy + (rowH - tm.tmHeight) / 2, num, (int)wcslen(num));
+        }
+        SetTextColor(dc, kText);
+        TextOutW(dc, x + numW, cy + (rowH - tm.tmHeight) / 2, items_[i].c_str(), (int)items_[i].size());
+      }
+      y += (((int)items_.size() + cols_ - 1) / cols_) * rowH;
+      if (pages_ > 1) {
+        wchar_t p[48];
+        swprintf_s(p, L"第 %d / %d 列", page_ + 1, pages_);
+        SetTextColor(dc, kDim);
+        TextOutW(dc, pad, y + (rowH - tm.tmHeight) / 2, p, (int)wcslen(p));
+      }
+      SelectObject(dc, old);
+      return;
     }
     for (size_t i = 0; i < items_.size(); i++) {
       if ((int)i == hi_) {

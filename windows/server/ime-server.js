@@ -144,7 +144,13 @@ function state(out) {
   let cand = null;
   if (composer.cand) {
     const ps = composer.opts.pageSize;
-    cand = { items: composer.candPage().map((c) => c.w), hi: composer.cand.hi % ps, page: composer.cand.page, pages: Math.ceil(composer.cand.list.length / ps) };
+    if (composer.cand.expanded) {
+      // 按 → 攤開的表格：cols 個一列，numRow 是標 1～9 的那一列（從表格顯示的第一列算）
+      const g = composer.candGrid();
+      cand = { items: g.items.map((c) => c.w), hi: composer.cand.hi - g.top * g.cols, page: g.hiRow, pages: g.rows, cols: g.cols, numRow: g.hiRow - g.top };
+    } else {
+      cand = { items: composer.candPage().map((c) => c.w), hi: composer.cand.hi % ps, page: composer.cand.page, pages: Math.ceil(composer.cand.list.length / ps) };
+    }
     // 選字窗開在要換的那個字底下（不是組字區最左邊）
     const sel = composer.cand.list[composer.cand.hi];
     if (sel) cand.at = charsBefore(sel.s);
